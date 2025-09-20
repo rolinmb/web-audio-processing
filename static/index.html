@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Audio Gain FX</title>
+</head>
+<body>
+  <h1>Upload & Process Audio</h1>
+  
+  <input type="file" id="fileInput" accept=".mp3,.wav"><br><br>
+  <audio id="audio" controls></audio><br><br>
+
+  <label for="gainSlider">Gain (dB): </label>
+  <input type="range" id="gainSlider" min="0" max="20" step="1" value="0">
+  <span id="gainValue">0 dB</span><br><br>
+
+  <button id="downloadBtn">Download Processed Audio</button>
+
+  <script src="app.js"></script>
+</body>
+</html>
