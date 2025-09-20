@@ -4,9 +4,18 @@ let gainSlider = document.getElementById("gainSlider");
 let gainValue = document.getElementById("gainValue");
 let distSlider = document.getElementById("distSlider");
 let distValue = document.getElementById("distValue");
+let delaySlider = document.getElementById("delaySlider");
+let delayValue = document.getElementById("delayValue");
+let delayVolSlider = document.getElementById("delayVolSlider");
+let delayVolValue = document.getElementById("delayVolValue");
+let reverbSlider = document.getElementById("reverbSlider");
+let reverbValue = document.getElementById("reverbValue");
 let downloadBtn = document.getElementById("downloadBtn");
 
-let audioContext, sourceNode, gainNode, distortionNode, dryGain, wetGain, audioBuffer;
+let audioContext, sourceNode, gainNode;
+let distortionNode, dryGain, wetGain;
+let delayNode, reverbNode, reverbWet, reverbDry, delayWetGain, delayDryGain;
+let audioBuffer;
 
 fileInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
@@ -15,48 +24,78 @@ fileInput.addEventListener("change", async (e) => {
   const url = URL.createObjectURL(file);
   audio.src = url;
 
-  // Setup Web Audio
   audioContext = new AudioContext();
   const arrayBuffer = await file.arrayBuffer();
   audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
   sourceNode = audioContext.createMediaElementSource(audio);
 
-  // Create gain and distortion nodes
+  // === Core Nodes ===
   gainNode = audioContext.createGain();
-  distortionNode = createDistortionCurve(400); // amount fixed, mix controlled separately
+  distortionNode = createDistortionCurve(400);
 
   dryGain = audioContext.createGain();
   wetGain = audioContext.createGain();
 
-  // Routing: source → gainNode → [dry, distortion] → mix → destination
+  // === Delay ===
+  delayNode = audioContext.createDelay(5.0); // up to 5s delay
+  delayNode.delayTime.value = 0.0;
+
+  // === Reverb ===
+  reverbNode = audioContext.createConvolver();
+  reverbNode.buffer = buildImpulseResponse(audioContext, 2.5); // 2.5s IR
+  reverbWet = audioContext.createGain();
+  reverbDry = audioContext.createGain();
+  reverbWet.gain.value = 0.0;
+  reverbDry.gain.value = 1.0;
+
+  // === Routing ===
   sourceNode.connect(gainNode);
 
+  // Parallel distortion
   gainNode.connect(dryGain).connect(audioContext.destination);
   gainNode.connect(distortionNode).connect(wetGain).connect(audioContext.destination);
+
+  // Add delay on main path
+  gainNode.connect(delayNode).connect(audioContext.destination);
+
+  // Reverb with wet/dry
+  gainNode.connect(reverbDry).connect(audioContext.destination);
+  gainNode.connect(reverbNode).connect(reverbWet).connect(audioContext.destination);
 });
 
-// Update gain in real-time
+// === Controls ===
 gainSlider.addEventListener("input", () => {
   let db = parseInt(gainSlider.value, 10);
   gainValue.textContent = `${db} dB`;
-  if (gainNode) {
-    gainNode.gain.value = Math.pow(10, db / 20); // convert dB → linear gain
-  }
+  if (gainNode) gainNode.gain.value = Math.pow(10, db / 20);
 });
 
-// Update distortion mix
 distSlider.addEventListener("input", () => {
   let mix = parseInt(distSlider.value, 10) / 100.0;
   distValue.textContent = `${distSlider.value}%`;
-
   if (dryGain && wetGain) {
     dryGain.gain.value = 1 - mix;
     wetGain.gain.value = mix;
   }
 });
 
-// Download processed audio
+delaySlider.addEventListener("input", () => {
+  let ms = parseInt(delaySlider.value, 10);
+  delayValue.textContent = `${ms} ms`;
+  if (delayNode) delayNode.delayTime.value = ms / 1000.0;
+});
+
+reverbSlider.addEventListener("input", () => {
+  let mix = parseInt(reverbSlider.value, 10) / 100.0;
+  reverbValue.textContent = `${reverbSlider.value}%`;
+  if (reverbWet && reverbDry) {
+    reverbWet.gain.value = mix;
+    reverbDry.gain.value = 1 - mix;
+  }
+});
+
+// === Offline rendering for download ===
 downloadBtn.addEventListener("click", async () => {
   if (!audioBuffer) return;
 
@@ -74,35 +113,50 @@ downloadBtn.addEventListener("click", async () => {
   offlineGain.gain.value = Math.pow(10, db / 20);
 
   let offlineDistortion = createDistortionCurve(400, offlineCtx);
-
   let offlineDryGain = offlineCtx.createGain();
   let offlineWetGain = offlineCtx.createGain();
+  let distMix = parseInt(distSlider.value, 10) / 100.0;
+  offlineDryGain.gain.value = 1 - distMix;
+  offlineWetGain.gain.value = distMix;
 
-  let mix = parseInt(distSlider.value, 10) / 100.0;
-  offlineDryGain.gain.value = 1 - mix;
-  offlineWetGain.gain.value = mix;
+  let offlineDelay = offlineCtx.createDelay(5.0);
+  offlineDelay.delayTime.value = parseInt(delaySlider.value, 10) / 1000.0;
 
-  // Routing in offline context
+  let offlineReverb = offlineCtx.createConvolver();
+  offlineReverb.buffer = buildImpulseResponse(offlineCtx, 2.5);
+  let offlineReverbWet = offlineCtx.createGain();
+  let offlineReverbDry = offlineCtx.createGain();
+  let revMix = parseInt(reverbSlider.value, 10) / 100.0;
+  offlineReverbWet.gain.value = revMix;
+  offlineReverbDry.gain.value = 1 - revMix;
+
+  // === Offline Routing ===
   bufferSource.connect(offlineGain);
 
+  // Distortion parallel
   offlineGain.connect(offlineDryGain).connect(offlineCtx.destination);
   offlineGain.connect(offlineDistortion).connect(offlineWetGain).connect(offlineCtx.destination);
+
+  // Delay
+  offlineGain.connect(offlineDelay).connect(offlineCtx.destination);
+
+  // Reverb parallel
+  offlineGain.connect(offlineReverbDry).connect(offlineCtx.destination);
+  offlineGain.connect(offlineReverb).connect(offlineReverbWet).connect(offlineCtx.destination);
 
   bufferSource.start();
 
   const renderedBuffer = await offlineCtx.startRendering();
 
-  // Export WAV
   let wavBlob = bufferToWav(renderedBuffer);
   let url = URL.createObjectURL(wavBlob);
-  
   let a = document.createElement("a");
   a.href = url;
   a.download = "processed.wav";
   a.click();
 });
 
-// Distortion helper
+// === Helpers ===
 function createDistortionCurve(amount, ctx = audioContext) {
   let distortion = ctx.createWaveShaper();
   let n_samples = 44100;
@@ -116,6 +170,20 @@ function createDistortionCurve(amount, ctx = audioContext) {
   distortion.oversample = "4x";
   return distortion;
 }
+
+function buildImpulseResponse(ctx, duration = 2.0) {
+  let rate = ctx.sampleRate;
+  let length = rate * duration;
+  let impulse = ctx.createBuffer(2, length, rate);
+  for (let c = 0; c < 2; c++) {
+    let channel = impulse.getChannelData(c);
+    for (let i = 0; i < length; i++) {
+      channel[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2); // decaying noise
+    }
+  }
+  return impulse;
+}
+
 
 function bufferToWav(buffer) {
   let numOfChan = buffer.numberOfChannels,
@@ -166,3 +234,22 @@ function bufferToWav(buffer) {
   function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
   function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
 }
+
+window.addEventListener("DOMContentLoaded", () => {
+  // reset slider positions
+  gainSlider.value = 0;
+  distSlider.value = 0;
+  delaySlider.value = 0;
+  reverbSlider.value = 0;
+
+  // reset displayed values
+  gainValue.textContent = "0 dB";
+  distValue.textContent = "0%";
+  delayValue.textContent = "0 ms";
+  reverbSlider.textContent = "0%";
+
+  // Reset file input & audio
+  fileInput.value = "";  // clears the selected file
+  audio.src = "";        // removes any loaded audio
+  audioBuffer = null;    // clear the decoded buffer
+});
