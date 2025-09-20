@@ -3,34 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <title>web-audio-processing</title>
+  <style>
+    /* Fullscreen gradient animation */
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      text-align: center;
+      background: linear-gradient(-45deg, #ffd6e0, #d6eaff, #e4ffd6);
+      background-size: 600% 600%;
+      animation: gradientFade 20s ease infinite;
+    }
+
+    @keyframes gradientFade {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Container to center content */
+    .container {
+      background: rgba(255, 255, 255, 0.8);
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-width: 400px;
+      width: 90%;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: #333;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 1rem;
+      margin-bottom: 0.3rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    span {
+      font-size: 0.9rem;
+      color: #444;
+    }
+
+    button {
+      margin-top: 1.5rem;
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      background: #6fa8dc;
+      color: white;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #3d85c6;
+    }
+  </style>
 </head>
 <body>
-  <h1>Upload & Process Audio w/ FX a la the Web Audio API</h1>
-  
-  <input type="file" id="fileInput" accept=".mp3,.wav"><br><br>
-  <audio id="audio" controls></audio><br><br>
+  <div class="container">
+    <h1>Upload & Process Audio w/ FX</h1>
+    
+    <input type="file" id="fileInput" accept=".mp3,.wav"><br><br>
+    <audio id="audio" controls></audio><br><br>
 
-  <label for="gainSlider">Gain (dB): </label>
-  <input type="range" id="gainSlider" min="0" max="20" step="1" value="0">
-  <span id="gainValue">0 dB</span><br><br>
+    <label for="gainSlider">Gain (dB): </label>
+    <input type="range" id="gainSlider" min="0" max="20" step="1" value="0">
+    <span id="gainValue">0 dB</span><br>
 
-  <label for="distSlider">Distortion Mix (%): </label>
-  <input type="range" id="distSlider" min="0" max="100" step="1" value="0">
-  <span id="distValue">0%</span><br><br>
+    <label for="distSlider">Distortion Mix (%): </label>
+    <input type="range" id="distSlider" min="0" max="100" step="1" value="0">
+    <span id="distValue">0%</span><br>
 
-  <label for="delayVolSlider">Delay Mix (%): </label>
-  <input type="range" id="delayVolSlider" min="0" max="100" step="1" value="0">
-  <span id="delayVolValue">0%</span><br><br>
+    <label for="delayVolSlider">Delay Mix (%): </label>
+    <input type="range" id="delayVolSlider" min="0" max="100" step="1" value="0">
+    <span id="delayVolValue">0%</span><br>
 
-  <label for="delaySlider">Delay (ms): </label>
-  <input type="range" id="delaySlider" min="0" max="1000" step="10" value="0">
-  <span id="delayValue">0 ms</span><br><br>
+    <label for="delaySlider">Delay (ms): </label>
+    <input type="range" id="delaySlider" min="0" max="1000" step="10" value="0">
+    <span id="delayValue">0 ms</span><br>
 
-  <label for="reverbSlider">Reverb Mix (%): </label>
-  <input type="range" id="reverbSlider" min="0" max="100" step="1" value="0">
-  <span id="reverbValue">0%</span><br><br>
+    <label for="reverbSlider">Reverb Mix (%): </label>
+    <input type="range" id="reverbSlider" min="0" max="100" step="1" value="0">
+    <span id="reverbValue">0%</span><br>
 
-  <button id="downloadBtn">Download Audio w/ FX</button>
+    <button id="downloadBtn">Download Audio w/ FX</button>
+  </div>
 
   <script src="app.js"></script>
 </body>
